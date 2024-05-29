@@ -31,7 +31,7 @@ void init_serial(void)
     sp_set_bits(port, 8);
     sp_set_parity(port, SP_PARITY_NONE);
     sp_set_stopbits(port, 1);
-    sp_get_port_by_name("/dev/ttyACM0", &port);
+    sp_get_port_by_name("/dev/serial/by-id/usb-Silicon_Labs_CP2102_USB_to_UART_Bridge_Controller_0001-if00-port0", &port);
     sp_close(port);
     ret = sp_open(port, SP_MODE_READ_WRITE);
 
@@ -48,54 +48,30 @@ void init_serial(void)
 
 }
 
-//Timer Transmitter
-void Transmit_Routine()
-{
-  // printf("Transmitting...\n");
-}
+
 
 void Receive_Routine()
 {
-  // check if there is data to read
-  // while((sp_nonblocking_read(port, &rx_temp, 1))>0)
-  // {
-
-  //     if(rx_temp == 'i' && rx_state == 0)
-  //     {
-  //       rx_state = 1;
-  //     }
-  //     else if(rx_temp == 't' && rx_state == 1)
-  //     {
-  //       rx_state = 2;
-  //     }
-  //     else if(rx_temp == 's' && rx_state == 2)
-  //     {
-  //         rx_state = 3;
-  //         idx_rx = 3;
-  //     }
-  //     else if(rx_state == 3)
-  //     {
-  //         rx_buffer[idx_rx] = rx_temp;
-  //         if(++idx_rx>23)
-  //         {
-  //           rx_state = 0;
-  //           memcpy(data,rx_buffer+3,12);            
-  //           printf("Data:%.3f,%.3f,%.3f\n",data[0],data[1],data[2]);
-  //         }
-  //     }
-  //     else
-  //     {
-  //       rx_state = 0;
-  //     }
-      
-       
-  // }
-
-
-  char read_buffer[24];
-  sp_blocking_read(port, read_buffer, 24, 0);
-  printf("%s\n", read_buffer);
   
+  uint8_t read_buffer;
+  sp_return ret;
+  
+  ret = sp_nonblocking_read(port, &read_buffer, 1);
+
+  if( ret > 0)
+    printf("Receiving: %d\n", read_buffer);
+  
+}
+
+
+//Timer Transmitter
+void Transmit_Routine()
+{
+  
+  uint8_t tx_buffer = 112;
+  printf("Transmitting: %d\n", tx_buffer);
+  sp_nonblocking_write(port, &tx_buffer, 1);
+
 }
 
 int main(int argc, char * argv[])
@@ -103,19 +79,12 @@ int main(int argc, char * argv[])
   rclcpp::init(argc, argv);
 
   auto node = rclcpp::Node::make_shared("comserial");
-  // auto timer = node->create_wall_timer(std::chrono::milliseconds(10), Transmit_Routine);
-  // auto timer2 = node->create_wall_timer(std::chrono::milliseconds(1), Receive_Routine);
-
   init_serial();
 
-  while (rclcpp::ok())
-  {
-      Receive_Routine();
-  }
-  
+  auto timer = node->create_wall_timer(std::chrono::milliseconds(1000), Transmit_Routine);
+  auto timer2 = node->create_wall_timer(std::chrono::milliseconds(1), Receive_Routine);
 
-  // rclcpp::spin(node);
-  rclcpp::shutdown();
+  rclcpp::spin(node);
 
   return 0;
 }
